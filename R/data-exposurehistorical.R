@@ -1,0 +1,23 @@
+#' @title DATASET_TITLE
+#' @description DATASET_DESCRIPTION
+#' @format A data frame with 70 rows and 16 variables:
+#' \describe{
+#'   \item{\code{COM_ID}}{character COLUMN_DESCRIPTION}
+#'   \item{\code{impacto_antropogenico}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{impacto_humano}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{intervalo_diurno}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{marea_roja}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{oxigeno_disuelto}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{precipitacion_promedio}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{productividad_primaria}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{riesgo_huracanes}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{riesgo_inundaciones}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{temperatura_promedio_anual}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{temperatura_superficial}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{NOM_ENT}}{character COLUMN_DESCRIPTION}
+#'   \item{\code{NOM_MUN}}{character COLUMN_DESCRIPTION}
+#'   \item{\code{NOM_LOC}}{character COLUMN_DESCRIPTION}
+#'   \item{\code{POBTOT}}{double COLUMN_DESCRIPTION} 
+#'}
+#' @details DETAILS
+"exposurehistorical"
