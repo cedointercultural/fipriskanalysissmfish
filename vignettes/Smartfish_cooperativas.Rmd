@@ -1,0 +1,61 @@
+---
+title: "Summary cooperative indicators"
+output: html_notebook
+---
+
+Cooperative indicators
+```{r}
+#get tables with cooperative data
+
+googlesheets4::gs4_deauth()
+ind.table <- googlesheets4::read_sheet("1tgKIyHXBG5IQXX2SvN8uTbxvl3nefBqDuQDAw0emFP8",sheet="indicadores") %>% 
+  dplyr::filter(cooperativa!="SCPP PS")
+
+ind.table %>%
+  dplyr::filter(indicador=="Edad") %>% 
+  dplyr::mutate(ind = as.factor(indicador), cat = as.factor(categoria)) %>% 
+  ggplot2::ggplot(aes(x= cooperativa, y=total, fill=cat)) +
+#  ggplot2::geom_boxplot() +
+  ggplot2::geom_histogram(alpha=0.6, stat="identity") +
+  scale_fill_brewer(palette="Dark2") +
+  theme(text=element_text(size=17)) +
+  theme(axis.text = element_text(size = 18)) +
+ # theme(axis.text = element_text(size = 12), theme(axis.title=element_text(size=15)))+
+    labs(fill="Categoría",
+         x= "Cooperativa",
+         y = "Total")
+ # ggplot2::scale_fill_manual(values=c("#69b3a2", "#404080")) +
+ # ggplot2::theme_ipsum() +
+ #  ggplot2::facet_wrap(.~ind)
+
+ind.table %>%
+  dplyr::filter(indicador=="Ingreso") %>% 
+  dplyr::mutate(ind = as.factor(indicador), cat = as.factor(categoria)) %>% 
+  ggplot2::ggplot(aes(x= cooperativa, y=total, fill=cat)) +
+#  ggplot2::geom_boxplot() +
+  ggplot2::geom_histogram(alpha=0.6, stat="identity") +
+  scale_fill_brewer(palette="Dark2")+
+   theme(text=element_text(size=17)) +
+  theme(axis.text = element_text(size = 18)) +
+    labs(fill="Categoría",
+         x= "Cooperativa",
+         y = "Total")
+
+
+
+ind.table %>%
+  dplyr::filter(indicador=="Tipo de membresia") %>% 
+  dplyr::mutate(ind = as.factor(indicador), cat = as.factor(categoria)) %>% 
+  ggplot2::ggplot(aes(x= cooperativa, y=total, fill=cat)) +
+#  ggplot2::geom_boxplot() +
+  ggplot2::geom_histogram(alpha=0.6, stat="identity") +
+  scale_fill_brewer(palette="Dark2")+
+     theme(text=element_text(size=17)) +
+   theme(axis.text = element_text(size = 18)) +
+    labs(fill="Categoría",
+         x= "Cooperativa",
+         y = "Total")
+
+
+```
+

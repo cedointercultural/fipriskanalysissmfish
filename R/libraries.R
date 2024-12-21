@@ -13,6 +13,12 @@
 #install.packages("devtools")
 #library(devtools)
 
+#to install package Rfast
+# sudo add-apt-repository ppa:dns/gnu
+# sudo apt-get update
+# sudo apt install libgsl-dev
+#https://stackoverflow.com/questions/69583193/installing-r-gsl-package-on-ubuntu
+
 devtools::install_github("valentinitnelav/geobuffer")
 
 # needs terminal to provide password
@@ -20,13 +26,13 @@ devtools::install_github("valentinitnelav/geobuffer")
 #sudo apt-get install libgsl0-dev
 
 .packages = c("tidyverse","devtools","raster","readxl",
-              "sf","readr","rgdal", 
-              "stringr","data.table","Redmonder","psych",
+              "sf","readr","stringr","data.table","Redmonder","psych",
               "geobuffer","stringr","Rfast","nFactors","rnaturalearth",
               "gridExtra","exactextractr","here", "patchwork","paletteer",
-              "terrainr","plotrix","here","tmap","stringi","tidygeocoder",
-              "Hmisc","stars","gstat","sp","factoextra") 
-#,"plyr"
+              "terrainr","plotrix","here","stringi","tidygeocoder",
+              "Hmisc","stars","gstat","sp","factoextra","Rfast", "googlesheets4") 
+
+#,"plyr", "tmap"
 # Install CRAN packages (if not already installed)
 .inst <- .packages %in% installed.packages()
 if(length(.packages[!.inst]) > 0) install.packages(.packages[!.inst])

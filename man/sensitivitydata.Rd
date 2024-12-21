@@ -5,9 +5,11 @@
 \alias{sensitivitydata}
 \title{DATASET_TITLE}
 \format{
-A data frame with 70 rows and 29 variables:
+A data frame with 70 rows and 34 variables:
 \describe{
-\item{\code{COM_ID}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_ENT}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_LOC}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_MUN}}{character COLUMN_DESCRIPTION}
 \item{\code{COM_MUN}}{character COLUMN_DESCRIPTION}
 \item{\code{POBTOT}}{double COLUMN_DESCRIPTION}
 \item{\code{tot_captura_loc}}{double COLUMN_DESCRIPTION}
@@ -29,13 +31,16 @@ A data frame with 70 rows and 29 variables:
 \item{\code{permisos_pesca_per_capita_mun}}{double COLUMN_DESCRIPTION}
 \item{\code{num_permisos_acuicolas}}{double COLUMN_DESCRIPTION}
 \item{\code{permisos_acui_per_capita_mun}}{double COLUMN_DESCRIPTION}
-\item{\code{neg_acuicolas}}{logical COLUMN_DESCRIPTION}
-\item{\code{neg_pesca}}{logical COLUMN_DESCRIPTION}
-\item{\code{tot_ue}}{logical COLUMN_DESCRIPTION}
-\item{\code{prop_acuicolas}}{logical COLUMN_DESCRIPTION}
-\item{\code{prop_pesca}}{logical COLUMN_DESCRIPTION}
-\item{\code{neg_acui_per_capita}}{logical COLUMN_DESCRIPTION}
-\item{\code{neg_pesca_per_capita}}{logical COLUMN_DESCRIPTION}
+\item{\code{neg_acuicolas}}{double COLUMN_DESCRIPTION}
+\item{\code{neg_pesca}}{double COLUMN_DESCRIPTION}
+\item{\code{tot_ue}}{double COLUMN_DESCRIPTION}
+\item{\code{prop_acuicolas}}{double COLUMN_DESCRIPTION}
+\item{\code{prop_pesca}}{double COLUMN_DESCRIPTION}
+\item{\code{neg_acui_per_capita}}{double COLUMN_DESCRIPTION}
+\item{\code{neg_pesca_per_capita}}{double COLUMN_DESCRIPTION}
+\item{\code{no_loc}}{integer COLUMN_DESCRIPTION}
+\item{\code{no_mun}}{integer COLUMN_DESCRIPTION}
+\item{\code{no_ent}}{integer COLUMN_DESCRIPTION}
 }
 }
 \usage{

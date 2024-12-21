@@ -5,7 +5,7 @@
 \alias{fipinventory}
 \title{DATASET_TITLE}
 \format{
-A data frame with 69 rows and 15 variables:
+A data frame with 67 rows and 15 variables:
 \describe{
 \item{\code{fip_id_number}}{integer COLUMN_DESCRIPTION}
 \item{\code{fip_name}}{character COLUMN_DESCRIPTION}

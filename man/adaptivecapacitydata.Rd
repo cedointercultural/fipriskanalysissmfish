@@ -5,9 +5,11 @@
 \alias{adaptivecapacitydata}
 \title{DATASET_TITLE}
 \format{
-A data frame with 70 rows and 42 variables:
+A data frame with 70 rows and 47 variables:
 \describe{
-\item{\code{COM_ID}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_ENT}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_LOC}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_MUN}}{character COLUMN_DESCRIPTION}
 \item{\code{NOM_ENT}}{character COLUMN_DESCRIPTION}
 \item{\code{NOM_MUN}}{character COLUMN_DESCRIPTION}
 \item{\code{NOM_LOC}}{character COLUMN_DESCRIPTION}
@@ -49,6 +51,9 @@ A data frame with 70 rows and 42 variables:
 \item{\code{cam_pobsol}}{double COLUMN_DESCRIPTION}
 \item{\code{cam_hogfem}}{double COLUMN_DESCRIPTION}
 \item{\code{cam_religion}}{double COLUMN_DESCRIPTION}
+\item{\code{no_loc}}{integer COLUMN_DESCRIPTION}
+\item{\code{no_mun}}{integer COLUMN_DESCRIPTION}
+\item{\code{no_ent}}{integer COLUMN_DESCRIPTION}
 }
 }
 \usage{

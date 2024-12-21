@@ -5,9 +5,11 @@
 \alias{exposuressp585}
 \title{DATASET_TITLE}
 \format{
-A data frame with 70 rows and 16 variables:
+A data frame with 70 rows and 21 variables:
 \describe{
-\item{\code{COM_ID}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_ENT}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_LOC}}{character COLUMN_DESCRIPTION}
+\item{\code{CVE_MUN}}{character COLUMN_DESCRIPTION}
 \item{\code{impacto_antropogenico}}{double COLUMN_DESCRIPTION}
 \item{\code{impacto_humano}}{double COLUMN_DESCRIPTION}
 \item{\code{intervalo_diurno}}{double COLUMN_DESCRIPTION}
@@ -23,6 +25,9 @@ A data frame with 70 rows and 16 variables:
 \item{\code{NOM_MUN}}{character COLUMN_DESCRIPTION}
 \item{\code{NOM_LOC}}{character COLUMN_DESCRIPTION}
 \item{\code{POBTOT}}{double COLUMN_DESCRIPTION}
+\item{\code{no_loc}}{integer COLUMN_DESCRIPTION}
+\item{\code{no_mun}}{integer COLUMN_DESCRIPTION}
+\item{\code{no_ent}}{integer COLUMN_DESCRIPTION}
 }
 }
 \usage{
