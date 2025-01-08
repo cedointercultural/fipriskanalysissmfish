@@ -7,18 +7,10 @@
 #' @export
 #'
 #' @examples scaled.exp <- scale_var(exp.data.set.sc, NA)
-scale_var <- function(datatable, sspscenario){
-
-if (is.character(sspscenario)){
-
-  num.vars <- datatable %>%
-    dplyr::filter(scenario==sspscenario)
-
-} else if(is.na(sspscenario)){
-
-  num.vars <- datatable
-
-}
+scale_var_expo <- function(datatable, sspscenario, vars.expo, fiplocal.id){
+  
+  num.vars <- datatable %>% 
+    dplyr::filter(CVE_LOC %in% fiplocal.id) 
   
   process.num <- num.vars %>%
     dplyr::select(dplyr::where(is.numeric)) %>%
@@ -43,7 +35,25 @@ if (is.character(sspscenario)){
     dplyr::select(dplyr::where(is.character)) %>%
     dplyr::bind_cols(., num.tot)
   
-   return(data.res)
+  data.long <- data.res %>%
+    tidyr::pivot_longer(cols=3:ncol(.), names_to="variable_id",values_to="value") 
+  print(data.long)
+  
+  vars.set <- vars.expo %>% 
+    dplyr::filter(scenario==sspscenario) %>% 
+    dplyr::mutate(variable_id = var_nom) %>% 
+    dplyr::select(variable_id, direction, scenario) 
+  
+  expo.dat <- data.long %>% 
+    dplyr::left_join(vars.set, by="variable_id") %>% 
+    dplyr::mutate(in_value=ifelse(direction=="higher_positive", 1-value, value)) %>%
+    dplyr::select(-CVE_MUN,-direction, -scenario,-value) %>%
+    tidyr::pivot_wider(names_from=variable_id, values_from=in_value) %>% 
+    dplyr::mutate(scenario=sspscenario) %>% 
+    dplyr::select(scenario, everything())
+  
+  print(expo.dat)
+  return(expo.dat)
 }
 
 

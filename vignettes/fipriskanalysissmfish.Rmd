@@ -34,7 +34,7 @@ sdm.files <- list.files(here::here("data-raw","sdm"), pattern="*.asc", recursive
 
 sdm.names <- tolower(sdm.files)
 
-species.no <- 1:length(species)
+species.no <- 1:length(sdm.species)
 #species.no <- 44:length(species)
 
 crs.eqap <- enmSdmX::getCRS('EE Americas') # Equal area projection Americas, use getCRS() to see all projections available
@@ -44,35 +44,87 @@ dist.stats <- lapply(species.no, calc_distchange, sdm.species, crs.eqap, sdm.nam
  
 dist.table <- dist.stats %>% bind_rows()
   
+list_res <- list()
+  
+for(eachscenario in 1:length(unique(dist.table$scenario))){
 
-readr::write_csv(dist.table, here::here("outputs","distribution_stats_table.csv"))
+  print(eachscenario)
+  this.scenario <- unique(dist.table$scenario)[eachscenario]
+  print(this.scenario)
+  
+  numeric.table <- dist.table %>%
+    dplyr::filter(scenario==this.scenario)
+  
+  process.num <- numeric.table %>% 
+    dplyr::select(dplyr::where(is.numeric)) %>%
+    caret::preProcess(., method=c("range"))
+  
+  num.scale <- numeric.table %>%
+    dplyr::select(dplyr::where(is.numeric)) %>%
+    stats::predict(process.num, .)
+  
+  dist.table.scaled <- dist.table %>%
+    dplyr::filter(scenario==this.scenario) %>%
+    dplyr::select(-dplyr::where(is.numeric)) %>%
+    dplyr::bind_cols(., num.scale)
+
+  list_res[[eachscenario]] <- dist.table.scaled  
+  
+}
+
+list_res.table <- do.call(rbind, list_res)
+
+readr::write_csv(list_res.table, here::here("outputs","distribution_stats_table.csv"))
 
 ```
 
 
 
+=
 
-
-Get life history data from Google sheet. 
+Get data for components 
 ```{r get fip data, message=FALSE, warning=FALSE, include=FALSE}
-
-
-sheetlink = "https://docs.google.com/spreadsheets/d/1HoWV3HponuSLKvF1UyBOFXD-gbdwtiuhdui7OUnybZ4"
 
 gs4_deauth()
 
-#get species
-smartfish.species <- googlesheets4::read_sheet(ss=sheetlink, sheet = "especies_smartfish", col_types = c("cciiiiic"))
+#get species by coop
+coop.species <- googlesheets4::read_sheet(ss="https://docs.google.com/spreadsheets/d/1tgKIyHXBG5IQXX2SvN8uTbxvl3nefBqDuQDAw0emFP8/edit?gid=784454269#gid=784454269", sheet="especies_cooperativas") %>%  dplyr::mutate(nombre_comun = tolower(nombre_comun), nombre_cientifico = tolower(nombre_cientifico), cooperativa=tolower(cooperativa))
+
+sheetlink = "https://docs.google.com/spreadsheets/d/1bBn7nLtMHPUSuSWU1XI85AR53cUfr9rSjv_6Dp4OywI"
+
+#get species list
+smartfish.species <- googlesheets4::read_sheet(ss=sheetlink, sheet = "especies_smartfish", col_types = c("ccccc")) %>% 
+  dplyr::mutate(nombre_comun = tolower(nombre_comun), nombre_cientifico = tolower(nombre_cientifico))
+
+googlesheets4::gs4_deauth()
+locs.pesca <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "localidades", col_types = c("cccccccc")) %>% 
+  dplyr::rename(coop_name = cooperativa, cooperativa=nombre_cooperativa) %>% 
+  mutate(cooperativa=tolower(cooperativa))
+  
+speciescoop <- coop.species %>% 
+  dplyr::mutate(cooperativa=tolower(cooperativa)) %>%
+  dplyr::left_join(smartfish.species, by=c("nombre_cientifico","nombre_comun")) %>% 
+  dplyr::filter(!is.na(region)) %>% 
+  dplyr::select(-entidad, -localidad) %>% 
+  dplyr::left_join(locs.pesca, by="cooperativa")
+  
+
+usethis::use_data(speciescoop, overwrite = TRUE)
+#creates template describing the data
+data.description <-sinew::makeOxygen(speciescoop)
+cat(data.description, file=here::here("R",paste0("data-","speciescoop.R")))
+
+#used to check for missing species
+#coop.loc.sp %>% dplyr::filter(is.na(region)) %>% View()
 
 #get life history data for species
-
-lifehistory.data <- read_googlesheet(sheetlink, "datos_caracteristicas_smartfish", "ccccccccccccccccccccccccciiiccccccccccccc")
+lifehistorydata <- read_googlesheet(sheetlink, "datos_caracteristicas_smartfish", "ccccccccccccccccccccccccciiiccccccccccccc")
 usethis::use_data(lifehistorydata, overwrite = TRUE)
 #creates template describing the data
 data.description <-sinew::makeOxygen(lifehistorydata)
 cat(data.description, file=here::here("R",paste0("data-","lifehistorydata.R")))
 
-lifehistory.traits <- read_googlesheet(sheetlink, "life_history_traits", NULL)
+lifehistorytraits <- read_googlesheet(sheetlink, "carac_criterios", NULL)
 usethis::use_data(lifehistory.traits, overwrite = TRUE)
 #creates template describing the data
 data.description <-sinew::makeOxygen(lifehistorytraits)
@@ -91,26 +143,25 @@ usethis::use_data(sensitivitydata, overwrite = TRUE)
 data.description <-sinew::makeOxygen(sensitivitydata)
 cat(data.description, file=here::here("R",paste0("data-","sensitivitydata.R")))
 
-exposurehistorical <- readr::read_csv(here::here("data-raw","comp_score_exposure_historical.csv")) 
+exposurehistorical <- readr::read_csv(here::here("data-raw","tot_exposure_historical.csv")) 
 usethis::use_data(exposurehistorical, overwrite = TRUE)
 #creates template describing the data
 data.description <-sinew::makeOxygen(exposurehistorical)
 cat(data.description, file=here::here("R",paste0("data-","exposurehistorical.R")))
 
-exposuressp126 <- readr::read_csv(here::here("data-raw","comp_score_exposure_ssp126.csv")) 
+exposuressp126 <- readr::read_csv(here::here("data-raw","tot_exposure_ssp126.csv")) 
 usethis::use_data(exposuressp126, overwrite = TRUE)
 #creates template describing the data
 data.description <-sinew::makeOxygen(exposuressp126)
 cat(data.description, file=here::here("R",paste0("data-","exposuressp126.R")))
 
-exposuressp245 <- readr::read_csv(here::here("data-raw","exposure_ssp245.csv")) 
+exposuressp245 <- readr::read_csv(here::here("data-raw","tot_exposure_ssp245.csv")) 
 usethis::use_data(exposuressp245, overwrite = TRUE)
 #creates template describing the data
 data.description <-sinew::makeOxygen(exposuressp245)
 cat(data.description, file=here::here("R",paste0("data-","exposuressp245.R")))
 
-exposuressp585 <- readr::read_csv(here::here("data-raw","exposure_ssp585.csv")) %>% 
-  correctcomid(.)
+exposuressp585 <- readr::read_csv(here::here("data-raw","tot_exposure_ssp585.csv")) 
 usethis::use_data(exposuressp585, overwrite = TRUE)
 #creates template describing the data
 data.description <-sinew::makeOxygen(exposuressp585)
@@ -128,15 +179,15 @@ devtools::load_all() # restarts and loads
 
 Extract and map locations
 
-```{r}
+```{r get locations}
 
 googlesheets4::gs4_deauth()
-locs.pesca <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "localidades", col_types = c("ccccccc"))
+locs.pesca <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "localidades", col_types = c("cccccccc"))
 
 locs.selecc <- unique(locs.pesca$CVE_LOC)
 
 #only communities considered in the analysis
-localities  <- readr::read_csv(here::here("data-raw","comunidades_costeras_INEGI.csv")) %>% 
+localities  <- readr::read_csv(here::here("data-raw","inegi_coast_comm.csv")) %>% 
   dplyr::filter(CVE_LOC %in% locs.selecc)
 
 usethis::use_data(localities, overwrite = TRUE)
@@ -150,7 +201,7 @@ crs.proj.wgs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0
 
 #convertir en capa geografica
 inegi.2020.coords <- localities %>% 
-  dplyr::select("CVE_ENT","CVE_LOC","CVE_MUN","COM_ID","NOM_ENT","NOM_MUN","NOM_LOC","deci_lon","deci_lat") %>% 
+  dplyr::select("CVE_ENT","CVE_LOC","CVE_MUN","NOM_ENT","NOM_MUN","NOM_LOC","deci_lon","deci_lat") %>% 
   dplyr::left_join(locs.pesca, by=c("CVE_LOC", "CVE_ENT", "CVE_MUN"))
 
 readr::write_csv(inegi.2020.coords, here::here("outputs","smartfish_locations.csv"))
@@ -215,9 +266,6 @@ ggplot2::ggsave(here::here("outputs","figures","mapa_localidades_smartfish.png")
 Estimate vulnerability, for its different components
 ```{r get vulnerability}
 
-googlesheets4::gs4_deauth()
-locs.pesca <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "localidades", col_types = c("cccccccc"))
-
 # coms.cost <- readr::read_csv(here::here("data-raw","comunidades_costeras_INEGI.csv"))
 #get data community vulnerability
 data("adaptivecapacitydata")
@@ -229,6 +277,10 @@ dir.create(here::here("outputs","figures"))
 sm.locations <- readr::read_csv(here::here("outputs","smartfish_locations.csv"))
 
 fiplocal.id <- unique(sm.locations$CVE_LOC)
+
+googlesheets4::gs4_deauth()
+locs.pesca <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "localidades", col_types = c("cccccccc"))
+
 
 #variables utilizadas
 
@@ -261,7 +313,7 @@ process.vul <- vul.vars %>%
   dplyr::select(dplyr::where(is.numeric)) %>%
   caret::preProcess(., method=c("range"))
 
-#correct directionality  
+#correct directionality so that higher is negative
 
 vul.data.set.sc <- vul.vars %>% 
   dplyr::select(dplyr::where(is.numeric)) %>%
@@ -269,7 +321,7 @@ vul.data.set.sc <- vul.vars %>%
   dplyr::bind_cols(CVE_LOC=vul.vars$CVE_LOC, .) %>% 
   tidyr::pivot_longer(cols=2:ncol(.), names_to="variable_id",values_to="value") %>% 
   dplyr::left_join(ind.vul, by="variable_id") %>% 
-  mutate(value = ifelse(direction == "higher_negative", 1 - value, value)) %>% 
+  mutate(value = ifelse(direction == "higher_positive", 1 - value, value)) %>% 
   dplyr::select(-direction)
 
 
@@ -294,7 +346,7 @@ vul.data.set.coop <- ind.coop.wide %>%
   dplyr::bind_cols(cooperativa=ind.coop.wide$cooperativa, .) %>% 
   pivot_longer(cols=2:ncol(.), names_to="indicador",values_to="value") %>%
   dplyr::left_join(ind.catego, by="indicador") %>%
-  mutate(value = ifelse(direction == "higher_negative", 1 - value, value)) %>% 
+  mutate(value = ifelse(direction == "higher_positive", 1 - value, value)) %>% 
   dplyr::select(-indicador_categoria, -componente, -direction) %>% 
   dplyr::rename(variable_id = indicador)
 
@@ -309,157 +361,116 @@ scaled.vul <- vul.data.set.coop %>%
   dplyr::left_join(vul.data.set.wide, by=c("CVE_LOC"))
 
 #use to find duplicates
-vul.data.set.coop |>
-  dplyr::summarise(n = dplyr::n(), .by = c(CVE_LOC, variable_id)) |>
-  dplyr::filter(n > 1L)
+#vul.data.set.coop |>
+#  dplyr::summarise(n = dplyr::n(), .by = c(CVE_LOC, variable_id)) |>
+#  dplyr::filter(n > 1L)
 
-readr::write_csv(scaled.vul, here::here("outputs","scaled_vulnerability.csv"))
+ind.vul <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "indicadores") %>% 
+  dplyr::filter(component=="Vulnerabilidad") %>% 
+  dplyr::distinct(variable_id, Indicator_category) %>% 
+  dplyr::rename(nom_abrev = variable_id, indicador_categoria = Indicator_category)
 
+cat.vul <- ind.coop %>% 
+  dplyr::distinct(indicador_categoria, nom_abrev) %>% 
+  dplyr::bind_rows(ind.vul)
+
+scaled.vul.long <- scaled.vul %>% 
+  tidyr::pivot_longer(cols=9:ncol(.), names_to="nom_abrev",values_to="value") %>% 
+  dplyr::left_join(cat.vul, by="nom_abrev") 
+
+readr::write_csv(scaled.vul.long, here::here("outputs","Tabla_vulnerabilidad.csv"))
+
+readr::write_csv(scaled.vul.long, here::here("outputs","scaled_vulnerability.csv"))
 
 ```
 
 Estimate exposure
 
-```{r}
+```{r Exposure}
 data("adaptivecapacitydata")
 data("sensitivitydata")
 data("localities")
-data("fipinventory")
 
-#subsidies were estimated in the Huachinango project
-subsidios.dat <- readr::read_csv(here::here("data-raw","tot_fisheries_subsidies.csv")) %>% 
-  dplyr::group_by(CVE_LOC) %>% 
-  dplyr::summarise(tot_loc_subsidio = sum(tot_subsidies)) %>% 
-  dplyr::filter(CVE_LOC %in% fiplocal.id) 
+indicator.data <- adaptivecapacitydata %>% 
+  dplyr::left_join(sensitivitydata, by=c("CVE_LOC","CVE_MUN"))
 
+sm.locations <- readr::read_csv(here::here("outputs","smartfish_locations.csv"))
 
+fiplocal.id <- unique(sm.locations$CVE_LOC)
 
-fiplocal.id <- localities %>%
-    dplyr::select(fip_id_number, COM_ID, locality, municipality, state) %>%
-    dplyr::filter(COM_ID!="NA") %>% 
-    dplyr::distinct(COM_ID) %>% 
-    dplyr::pull(COM_ID)
+googlesheets4::gs4_deauth()
+locs.pesca <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "localidades", col_types = c("cccccccc"))
 
-fip.catch <- fipinventory %>% 
-  dplyr::select(fip_id_number, species, estimated_total_fip_landings_mt, estimated_total_fishery_landings_mt) %>% 
-  dplyr::left_join(localities, by="fip_id_number", multiple = "all") %>% 
-  dplyr::group_by(COM_ID) %>% 
-  dplyr::summarise(tot_estimated_fip_landings_mt = mean(estimated_total_fip_landings_mt) , tot_estimated_fishery_landings_mt= mean(estimated_total_fishery_landings_mt))
+caracs.pesq <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "indicadores_pesquerias")
 
-#composicion de la poblacion
-pesqueria <- c("prop_pesca","neg_pesca_per_capita","tot_estimated_fip_landings_mt","tot_estimated_fishery_landings_mt","tot_captura_loc_per_capita")
-empleo <- c("pob_ecactiva", "pob_empleada","grad_esc","in_compeco","in_marg","pob_salud")
+ind.expo <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "indicadores") %>% 
+  dplyr::filter(component=="Exposicion") %>% 
+  dplyr::distinct(variable_id, direction)
 
-sensitivity.bc <- sensitivitydata %>% 
-  dplyr::left_join(fip.catch, by="COM_ID") %>% 
-  mutate_if(is.numeric, funs(ifelse(is.na(.), 0, .)))
+#fisheries structure
+expo.ind.names <- ind.expo$variable_id
 
+exposure.bc <- indicator.data %>% 
+  dplyr::select(CVE_LOC, all_of(expo.ind.names)) %>%
+  dplyr::filter(CVE_LOC %in% fiplocal.id) %>% 
+  mutate_if(is.numeric, funs(ifelse(is.na(.), 0, .))) 
 
-adaptive.bc <- adaptivecapacitydata %>% 
-   mutate_if(is.numeric, funs(ifelse(is.na(.), 0, .))) 
-
-  
-pesqueria.pca <- pca_factor(thisdata = sensitivity.bc, datasetname = "pesqueria", namesdata = pesqueria) 
-empleo.pca <- pca_factor(thisdata = adaptive.bc, datasetname = "empleo", namesdata = empleo)
-
-exposicion.pca <- dplyr::bind_rows(pesqueria.pca, empleo.pca)
-
-readr::write_csv(exposicion.pca,here::here("outputs","exposure_pca_results.csv"))  
-
-```
-
-
-```{r get exposure}
-data("adaptivecapacitydata")
-data("sensitivitydata")
-data("localities")
-data("fipinventory")
-
-fiplocal.id <- localities %>%
-    dplyr::select(fip_id_number, COM_ID, locality, municipality, state) %>%
-    dplyr::filter(COM_ID!="NA") %>% 
-    dplyr::distinct(COM_ID) %>% 
-    dplyr::pull(COM_ID)
-
-fip.catch <- fipinventory %>% 
-  dplyr::select(fip_id_number, species, estimated_total_fip_landings_mt, estimated_total_fishery_landings_mt) %>% 
-  dplyr::left_join(localities, by="fip_id_number", multiple = "all") %>% 
-  dplyr::filter(!is.na(LOC)) %>% 
-  dplyr::group_by(COM_ID) %>% 
-  dplyr::summarise(tot_estimated_fip_landings_mt = mean(estimated_total_fip_landings_mt) , tot_estimated_fishery_landings_mt= mean(estimated_total_fishery_landings_mt))
-
-#composicion de la poblacion
-pesqueria <- c("prop_pesca","neg_pesca_per_capita","tot_estimated_fip_landings_mt","tot_estimated_fishery_landings_mt","tot_captura_loc_per_capita")
-empleo <- c("pob_ecactiva", "pob_empleada","grad_esc","in_compeco","in_marg","pob_salud")
-
-sensitivity.bc <- sensitivitydata %>% 
-  dplyr::left_join(fip.catch, by="COM_ID") %>% 
-    mutate_if(is.numeric, funs(ifelse(is.na(.), 0, .)))
-
-
-adaptive.bc <- adaptivecapacitydata %>% 
-    mutate_if(is.numeric, funs(ifelse(is.na(.), 0, .)))
-  
-pesqueria.pca <- pca_factor(thisdata = sensitivity.bc, datasetname = "pesqueria", namesdata = pesqueria) 
-empleo.pca <- pca_factor(thisdata = adaptive.bc, datasetname = "empleo", namesdata = empleo)
-
-exposicion.pca <- dplyr::bind_rows(pesqueria.pca, empleo.pca)
-
-readr::write_csv(exposicion.pca,here::here("outputs","exposure_pca_results.csv"))  
-
-data.set.em <- adaptive.bc %>%
-  dplyr::mutate(NOM_MUN = tolower(stringi::stri_trans_general(str = NOM_MUN, id = "Latin-ASCII"))) %>% # quitar los acentos
-  dplyr::mutate(NOM_ENT = tolower(stringi::stri_trans_general(str = NOM_ENT, id = "Latin-ASCII"))) %>% 
-  dplyr::mutate(NOM_LOC = tolower(stringi::stri_trans_general(str = NOM_LOC, id = "Latin-ASCII"))) %>%  
-  dplyr::select(any_of(c("NOM_ENT", "NOM_MUN","NOM_LOC","COM_ID","dec_lon","dec_lat",empleo)))
-
-data.set.pes <- sensitivity.bc %>%
-    dplyr::select(any_of(c("NOM_ENT", "NOM_MUN","NOM_LOC","COM_ID","dec_lon","dec_lat",pesqueria)))
-
-data.set.exp <- data.set.em %>% 
-  dplyr::left_join(data.set.pes, by=c("NOM_ENT", "NOM_MUN","NOM_LOC", "COM_ID"))
-
-readr::write_csv(data.set.exp, here::here("outputs","Tabla2_b_exposicion_indicadores.csv"))
-
-exp.data.set.in <- data.set.exp %>%
-    dplyr::select(-NOM_ENT, -NOM_MUN, -NOM_LOC) 
-
-fip.catch.id <- fipinventory %>% 
-  dplyr::distinct(fip_id_number, estimated_total_fip_landings_mt, estimated_total_fishery_landings_mt)
-
-loc.fip.exp <- localities %>%
-  dplyr::select(COM_ID, fip_name, fip_id_number) %>% 
-  dplyr::left_join(exp.data.set.in, by=c("COM_ID")) %>% 
-  dplyr::filter(!is.na(pob_ecactiva)) %>% 
-  dplyr::select(-tot_estimated_fip_landings_mt, -tot_estimated_fishery_landings_mt) %>% 
-  tidyr::pivot_longer(cols=pob_ecactiva:tot_captura_loc_per_capita, names_to="indicator",values_to="value") %>% 
-  dplyr::group_by(fip_name, fip_id_number, indicator) %>% 
-  dplyr::summarise(fip_value = mean(value)) %>% 
-  tidyr::pivot_wider(names_from = indicator, values_from = fip_value) %>% 
-  dplyr::ungroup() %>% 
-  dplyr::left_join(fip.catch.id, by=c("fip_id_number"))
-
-process.exp <- loc.fip.exp %>% 
+process.coop <- exposure.bc %>% 
   dplyr::select(dplyr::where(is.numeric)) %>%
-  dplyr::select(-fip_id_number) %>% 
   caret::preProcess(., method=c("range"))
 
-exp.data.set.sc <- loc.fip.exp %>% 
+expo.data.set.coop <- exposure.bc %>% 
   dplyr::select(dplyr::where(is.numeric)) %>%
-  dplyr::select(-fip_id_number) %>% 
-  stats::predict(process.exp, .) %>% 
-  dplyr::bind_cols(fip_name=loc.fip.exp$fip_name, fip_id_number=loc.fip.exp$fip_id_number, .)
+  stats::predict(process.coop, .) %>% 
+  dplyr::bind_cols(CVE_LOC=exposure.bc$CVE_LOC, .) 
+ 
 
-scaled.exp <- scale_var(exp.data.set.sc, NA)
+#fisheries characteristics
 
-readr::write_csv(scaled.exp, here::here("outputs","scaled_exposure.csv"))
+ind.coop.wide <- caracs.pesq %>%
+  dplyr::select(cooperativa, nom_abrev, valor) %>%
+  tidyr::pivot_wider(names_from = nom_abrev, values_from = valor)  
+
+process.coop <- ind.coop.wide %>% 
+  dplyr::select(dplyr::where(is.numeric)) %>%
+  caret::preProcess(., method=c("range"))
+
+expo.data.scaled <- ind.coop.wide %>% 
+  dplyr::select(dplyr::where(is.numeric)) %>%
+  stats::predict(process.coop, .) %>% 
+  dplyr::bind_cols(cooperativa=ind.coop.wide$cooperativa, .) 
+ 
+
+ind.cat <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "indicadores") %>% 
+  dplyr::filter(component=="Exposicion") %>% 
+  dplyr::distinct(variable_id, Indicator_category) %>% 
+  dplyr::rename(indicator = variable_id, indicador_categoria = Indicator_category)
+
+carac.cat <- caracs.pesq %>% 
+  dplyr::distinct(indicador_categoria, nom_abrev) %>% 
+  dplyr::rename(indicator = nom_abrev) %>% 
+  dplyr::bind_rows(ind.cat)
+
+ind.dir <- ind.expo %>% 
+  dplyr::rename(indicator=variable_id)
+
+# corrected directionality, higher is negative
+scaled.expo <- expo.data.scaled %>% 
+  dplyr::left_join(locs.pesca, by ="cooperativa") %>%
+  dplyr::left_join(expo.data.set.coop, by=c("CVE_LOC")) %>% 
+  dplyr::select(cooperativa, nombre_cooperativa, localidad, entidad, mun, CVE_ENT, CVE_MUN, CVE_LOC, everything()) %>% 
+  tidyr::pivot_longer(cols=9:ncol(.), names_to="indicator",values_to="value") %>%
+  dplyr::left_join(carac.cat, by="indicator") %>% 
+  dplyr::left_join(ind.dir, by="indicator") %>%
+  dplyr::mutate(direction = ifelse(is.na(direction), "higher_positive", direction)) %>% 
+  dplyr::mutate(value = ifelse(direction == "higher_positive", 1 - value, value)) %>% 
+  dplyr::select(-direction) %>% 
+  dplyr::mutate(value=ifelse(is.nan(value), 0, value))
 
 
-#factorscores.impact is saved in pca_factor() and has the PC loadings by community
+readr::write_csv(scaled.expo,here::here("outputs","scaled_exposure.csv"))  
 
 ```
-
-
 
 Obtain life history data by species
 
@@ -470,9 +481,13 @@ data("lifehistorydata")
 data("localities")
 data("lifehistorytraits")
 
-lifehistory.trait <- get_lifehistory(lifehistorydata, localities, fipinventory, lifehistorytraits)
+species.sm <- googlesheets4::read_sheet("1bBn7nLtMHPUSuSWU1XI85AR53cUfr9rSjv_6Dp4OywI", sheet = "especies_smartfish")
 
-readr::write_csv(lifehistory.trait, here::here("outputs","lifehistory_traits.csv"))
+lifehistory.bc <- get_lifehistory(lifehistorydata, localities, lifehistorytraits, species.sm)
+
+lifehistory.bc %>% View()
+
+readr::write_csv(lifehistory.bc, here::here("outputs","lifehistory_data.csv"))
 
 
 ```
@@ -481,40 +496,22 @@ readr::write_csv(lifehistory.trait, here::here("outputs","lifehistory_traits.csv
 
 Estimate species sensitivity
 
-```{r get sensitivity}
+```{r species sensitivity}
 
 
-lifehistory.trait <- readr::read_csv(here::here("outputs","lifehistory_traits.csv"))
+lifehistory.trait <- readr::read_csv(here::here("outputs","lifehistory_data.csv")) %>% 
+  dplyr::select(-value, -Type, -category, -status, -topsis_weight) %>% 
+  tidyr::pivot_wider(names_from = traits, values_from = score)
 
-#dist.table <- readr::read_csv(here::here("outputs","distribution_table.csv")) %>% 
-#  tidyr::pivot_wider(names_from = indice, values_from = "value")
-
-#composicion de la poblacion
 lifehistory <- lifehistory.trait %>% 
   dplyr::select(-species) %>% 
   names()
   
-#distrib <- dist.table %>% 
-#  dplyr::select(-species, -scenario) %>% 
-#  names()
-
-#scaled.ssp126 <- scale_var(dist.table, "ssp126")
-#scaled.ssp245 <- scale_var(dist.table, "ssp245")
-#scaled.ssp585 <- scale_var(dist.table, "ssp585")
-
 scaled.lifehistory <- scale_var(datatable=lifehistory.trait, sspscenario=NA)
 
-#scaled.distribution <- dplyr::bind_rows(scaled.ssp126, scaled.ssp245, scaled.ssp585)
-
-#readr::write_csv(scaled.distribution, here::here("outputs","Tabla2_c_sensibilidad_distribucion.csv"))  
-
-readr::write_csv(scaled.lifehistory, here::here("outputs","Tabla2_d_sensibilidad_historiavida.csv"))
-
-#readr::write_csv(scaled.distribution, here::here("outputs","scaled_distribution.csv"))  
+readr::write_csv(scaled.lifehistory, here::here("outputs","sensibilidad_historiavida.csv"))
 
 readr::write_csv(scaled.lifehistory, here::here("outputs","scaled_lifehistory.csv"))
-
-#factorscores.impact is saved in pca_factor() and has the PC loadings by community
 
 ```
 
@@ -530,176 +527,213 @@ data("exposuressp585")
 data("localities")
 
 #exposure by communities
-peligroterrestre <- c("impacto_antropogenico","impacto_humano","temperatura_promedio_anual","intervalo_diurno", "precipitacion_promedio","riesgo_inundaciones")
-peligromarino <- c("riesgo_huracanes","marea_roja", "temperatura_superficial", "productividad_primaria","oxigeno_disuelto")
+
+googlesheets4::gs4_deauth()
+vars.expo <- googlesheets4::read_sheet("1eJXjwlHqEzSAZaTmE_XyN93fu6EI0I8igRH4AdvXOl8", sheet="vars_updated")
 
 fiplocal.id <- localities %>%
-    dplyr::select(fip_id_number, COM_ID, locality, municipality, state) %>%
-    dplyr::filter(COM_ID!="NA") %>% 
-    dplyr::distinct(COM_ID) %>% 
-    dplyr::pull(COM_ID)
+    dplyr::distinct(CVE_LOC) %>% 
+    dplyr::pull(CVE_LOC)
 
 expohist.bc <- exposurehistorical %>% 
-  dplyr::filter(COM_ID %in% fiplocal.id) %>% 
-  dplyr::mutate(escenario = "historico") %>% 
-  #tranpose the directionaly so that it is correct when standarized
-  dplyr::mutate(impacto_antropogenico=impacto_antropogenico * -1)
-
-expossp126.bc <- exposuressp126 %>% 
-  dplyr::filter(COM_ID %in% fiplocal.id)%>% 
-  dplyr::mutate(escenario = "ssp126") %>% 
-  #tranpose the directionaly so that it is correct when standarized
-  dplyr::mutate(impacto_antropogenico=impacto_antropogenico * -1)
-
-expossp245.bc <- exposuressp245 %>% 
-  dplyr::filter(COM_ID %in% fiplocal.id)%>% 
-  dplyr::mutate(escenario = "ssp245") %>% 
-  #tranpose the directionaly so that it is correct when standarized
-  dplyr::mutate(impacto_antropogenico=impacto_antropogenico * -1)
-
-expossp585.bc <- exposuressp585 %>% 
-  dplyr::filter(COM_ID %in% fiplocal.id)%>% 
-  dplyr::mutate(escenario = "ssp585") %>% 
-  #tranpose the directionaly so that it is correct when standarized
-  dplyr::mutate(impacto_antropogenico=impacto_antropogenico * -1)
-
-#Continue here, for some reason it is not saving the row names in the pca contribution
-
-# peligrote.hist.pca <- pca_factor(thisdata = expohist.bc, datasetname = "peligro terrestre_hist", namesdata = peligroterrestre) 
-# peligroma.hist.pca <- pca_factor(thisdata = expohist.bc, datasetname = "peligro marino_hist", namesdata = peligromarino) 
-# 
-# peligrote.126.pca <- pca_factor(thisdata = expossp126.bc, datasetname = "peligro terrestre_ssp126", namesdata = peligroterrestre) 
-# peligroma.126.pca <- pca_factor(thisdata = expossp126.bc, datasetname = "peligro marino_ssp126", namesdata = peligromarino) 
-# 
-# peligrote.245.pca <- pca_factor(thisdata = expossp245.bc, datasetname = "peligro terrestre_ssp245", namesdata = peligroterrestre) 
-# peligroma.245.pca <- pca_factor(thisdata = expossp245.bc, datasetname = "peligro marino_ssp245", namesdata = peligromarino) 
-# 
-# peligrote.585.pca <- pca_factor(thisdata = expossp585.bc, datasetname = "peligro terrestre_ssp585", namesdata = peligroterrestre) 
-# peligroma.585.pca <- pca_factor(thisdata = expossp585.bc, datasetname = "peligro marino_ssp585", namesdata = peligromarino) 
-# 
-# hazard.pca.coms <- dplyr::bind_rows(peligrote.hist.pca, peligroma.hist.pca, peligrote.126.pca, peligroma.126.pca, 
-#                                    peligrote.245.pca, peligroma.245.pca, peligrote.585.pca, peligroma.585.pca) %>% 
-#                   tidyr::separate_wider_delim(cols=data_name, delim="_", names=c("data_name","scenario"))
-#   
-
-readr::write_csv(hazard.pca.coms,here::here("outputs","hazard_pca_results_coms.csv"))  
-
-exp.scenarios <- c(expohist.bc, expossp126.bc, expossp245.bc, expossp585.bc)
-num.exp <- length(exp.scenarios)
-names.scenarios <- c("historico", "ssp126", "ssp245", "ssp585")
-id.cols <- expohist.bc %>% 
-    dplyr::select(COM_ID, NOM_ENT, NOM_MUN, NOM_LOC)
-
-expo.hist.mar <- select_var_tab(namesdata=peligromarino, datatable = expohist.bc, scenario = "historico", id.cols)
-expo.ssp126.mar <- select_var_tab(namesdata=peligromarino, datatable = expossp126.bc, scenario = "ssp126", id.cols)
-expo.ssp245.mar <- select_var_tab(namesdata=peligromarino, datatable = expossp245.bc, scenario = "ssp245", id.cols)
-expo.ssp585.mar <- select_var_tab(namesdata=peligromarino, datatable = expossp585.bc, scenario = "ssp585", id.cols)
-
-expo.mar <- dplyr::bind_rows(expo.hist.mar, expo.ssp126.mar, expo.ssp245.mar, expo.ssp585.mar) 
-
-readr::write_csv(expo.mar, here::here("outputs","Tabla2_e_peligro_marino.csv"))
-
-expo.hist.terr <- select_var_tab(namesdata=peligroterrestre, datatable = expohist.bc, scenario = "historico", id.cols)
-expo.ssp126.terr <- select_var_tab(namesdata=peligroterrestre, datatable = expossp126.bc, scenario = "ssp126", id.cols)
-expo.ssp245.terr <- select_var_tab(namesdata=peligroterrestre, datatable = expossp245.bc, scenario = "ssp245", id.cols)
-expo.ssp585.terr <- select_var_tab(namesdata=peligroterrestre, datatable = expossp585.bc, scenario = "ssp585", id.cols)
-
-expo.terr <- dplyr::bind_rows(expo.hist.terr, expo.ssp126.terr, expo.ssp245.terr, expo.ssp585.terr) 
-
-readr::write_csv(expo.terr, here::here("outputs","Tabla2_f_peligro_terrestre.csv"))
-
-loc.fip.expo <- localities %>%
-  dplyr::select(COM_ID, fip_name, fip_id_number) 
+  dplyr::filter(CVE_LOC %in% fiplocal.id) 
 
 
-expo.hist.mar.sc <- scale_indi(datatable = expo.hist.mar, loc.fip.expo)
-expo.ssp126.mar.sc <- scale_indi(datatable = expo.ssp126.mar, loc.fip.expo)
-expo.ssp245.mar.sc <- scale_indi(datatable = expo.ssp245.mar, loc.fip.expo)
-expo.ssp585.mar.sc <- scale_indi(datatable = expo.ssp585.mar, loc.fip.expo)
+scaled.expo.hist <- scale_var_expo(datatable=exposurehistorical, sspscenario="historical", vars.expo, fiplocal.id) %>% 
+  tidyr::pivot_longer(cols=3:ncol(.), names_to="indicator",values_to="value")
+  
+scaled.expo.ssp126 <- scale_var_expo(datatable=exposuressp126, sspscenario="ssp126", vars.expo, fiplocal.id)%>% 
+  tidyr::pivot_longer(cols=3:ncol(.), names_to="indicator",values_to="value")
 
-expo.mar.sc <- dplyr::bind_rows(expo.hist.mar.sc, expo.ssp126.mar.sc, expo.ssp245.mar.sc, expo.ssp585.mar.sc) %>% 
-    dplyr::rename(tot_score_mar = tot_score) %>% 
-    tidyr::pivot_longer(cols=3:ncol(.), names_to="indicator")
+scaled.expo.ssp245 <- scale_var_expo(datatable=exposuressp126, sspscenario="ssp245", vars.expo, fiplocal.id)%>% 
+  tidyr::pivot_longer(cols=3:ncol(.), names_to="indicator",values_to="value")
 
-expo.hist.terr.sc <- scale_indi(datatable = expo.hist.terr, loc.fip.expo)
-expo.ssp126.terr.sc <- scale_indi(datatable = expo.ssp126.terr, loc.fip.expo)
-expo.ssp245.terr.sc <- scale_indi(datatable = expo.ssp245.terr, loc.fip.expo)
-expo.ssp585.terr.sc <- scale_indi(datatable = expo.ssp585.terr, loc.fip.expo)
+scaled.expo.ssp585 <- scale_var_expo(datatable=exposuressp126, sspscenario="ssp585", vars.expo, fiplocal.id)%>% 
+  tidyr::pivot_longer(cols=3:ncol(.), names_to="indicator",values_to="value")
 
-expo.terr.sc <- dplyr::bind_rows(expo.hist.terr.sc, expo.ssp126.terr.sc, expo.ssp245.terr.sc, expo.ssp585.terr.sc) %>% 
-   dplyr::rename(tot_score_terr = tot_score) %>% 
-  tidyr::pivot_longer(cols=3:ncol(.), names_to="indicator")
 
-hazard.scaled <- expo.mar.sc %>% 
-  dplyr::bind_rows(expo.terr.sc) %>% 
-  tidyr::pivot_wider(names_from = indicator, values_from = value)
+googlesheets4::gs4_deauth()
+locs.pesca <- googlesheets4::read_sheet("1zPWnQLfMismgHFkQqmNE8yoLTg3L_3nC24uCTj780nQ", sheet = "localidades", col_types = c("cccccccc"))
 
-readr::write_csv(hazard.scaled, here::here("outputs","scaled_hazard.csv"))
+scaled.hazard <- dplyr::bind_rows(scaled.expo.hist, scaled.expo.ssp126, scaled.expo.ssp245, scaled.expo.ssp585) %>% 
+  dplyr::left_join(locs.pesca, by="CVE_LOC") %>% 
+  dplyr::mutate(component="hazard")
+
+readr::write_csv(scaled.hazard, here::here("outputs","scaled_hazard.csv"))
 
 ```
 
-
 plot sensitivity 
 ```{r}
+data("speciescoop")
 
-sens.dist <- readr::read_csv(here::here("outputs","scaled_distribution.csv"))  
-sens.lifehistory <- readr::read_csv(here::here("outputs","scaled_lifehistory.csv"))  
+#lifehistory
 
-#plot of species sensitivity
+sens.lifehistory <- readr::read_csv(here::here("outputs","scaled_lifehistory.csv")) %>% 
+  dplyr::mutate(species = tolower(species))
+print(sens.lifehistory)
 
-sens.data <- sens.lifehistory %>%
-  dplyr::rename(tot_score_dist = tot_score) %>%
-  dplyr::left_join(sens.dist, by = "species") %>%
-  dplyr::mutate(
-    image = dplyr::if_else(
-      species == "Paralabrax nebulifer",
-      "https://images.phylopic.org/images/eb6f54bf-3182-4d3a-9f16-602759c76db0/raster/512x253.png",
-      dplyr::if_else(
-        species == "Mesocentrotus franciscanus",
-        "https://images.phylopic.org/images/0552ec39-a86b-4e23-b92a-7c1c38386e29/raster/1024x715.png",
-        dplyr::if_else(
-          species == "Octopus hubbsorum",
-          "https://images.phylopic.org/images/f400b519-3564-4183-b4bd-c3b922cc7c5e/raster/512x373.png",
-          dplyr::if_else(
-            species == "Panulirus interruptus",
-            "https://images.phylopic.org/images/d96e18f2-c9d6-4b2e-914c-678ed3c72a28/raster/759x1024.png",
-            dplyr::if_else(
-              species == "Octopus bimaculatus",
-              "https://images.phylopic.org/images/85a4f59d-7a2e-4399-98e2-38d0edc75996/raster/512x348.png",
-              "NA"
-            )
-          )
-        )
-      )
-    )
-  )
+sp.coop.nom <- speciescoop %>% 
+  dplyr::rename(species = nombre_cientifico)
 
-sp.cols <- c("#E69F00", "#56B4E9", "#873e23", "#F0E442", "#0072B2", "#999999")
+sens.coop.lf <- sp.coop.nom %>%
+  dplyr::left_join(sens.lifehistory, by="species") %>% 
+  dplyr::filter(!is.na(tot_score)) %>% 
+  dplyr::select(-nom_coop, -arte_pesca, -fecha_fip, -lider_fip, -nombre_fip, -region)
+
+gs4_deauth()
+#fix directionality of life history attributes, some were eliminated because it was unclear they could affect response to climate change
+vars.lf <- googlesheets4::read_sheet("1bBn7nLtMHPUSuSWU1XI85AR53cUfr9rSjv_6Dp4OywI", sheet="life_history_direction")
+
+names(sens.lifehistory)
+
+#check for missing species
+#sens.coop.lf %>% dplyr::filter(is.na(tot_score)) %>% View()
   
-sens.data.plot <- sens.data %>% 
-  ggplot2::ggplot(ggplot2::aes(x=tot_score, y=tot_score_dist)) + 
-  ggplot2::geom_point(ggplot2::aes(color = species),
-    size = 2, 
-    alpha = 0.8 # It's nice to add some transparency because there may be overlap.
+sens.lifehistory.long <- sens.coop.lf %>% 
+  tidyr::pivot_longer(cols = 14:ncol(.), names_to = "var_name", values_to = "value") %>% 
+  dplyr::left_join(vars.lf, by="var_name") %>% 
+  dplyr::filter(!is.na(direction)) %>% 
+  dplyr::mutate(value = dplyr::if_else(direction == "higher_positive", 1 - value, value)) %>% 
+  dplyr::select(-direction, -var_name) %>% 
+  dplyr::rename(var_name = var_name_sp)
+
+print(sens.lifehistory.long)
+
+sens.lifehistory.natest <- sens.lifehistory.long %>% 
+  dplyr::filter(is.na(value))
+
+sens.lf.long.mean <- sens.lifehistory.long %>% 
+  dplyr::group_by(cooperativa, coop_name, localidad, habitat_group, status, entidad, species) %>% 
+  dplyr::summarise(mean_value = mean(value))
+
+#sp.cols <- c("#E69F00", "#56B4E9", "#873e23", "#F0E442", "#0072B2", "#999999")
+
+
+sens.lf.plot <- sens.lf.long.mean %>% 
+  dplyr::mutate(Estatus = dplyr::if_else(status=="fip","FIP", "Otros")) %>% 
+#  dplyr::mutate(species=str_to_sentence(species)) %>% 
+  ggplot2::ggplot(ggplot2::aes(x=habitat_group, y=mean_value)) + 
+  ggplot2::geom_point(ggplot2::aes(color = Estatus),
+    size = 3, 
+    alpha = 0.7 # It's nice to add some transparency because there may be overlap.
   ) +
-  ggplot2::scale_color_manual(values=sp.cols, name="Especie") +
-  ggplot2::facet_wrap(.~ scenario, ncol = 1) +
+ # ggplot2::scale_color_manual(values=sp.cols, name="Especie") +
+  ggplot2::facet_grid(coop_name ~ .) +
+  ggplot2::scale_color_brewer(palette = "Dark2") %>% 
   ggplot2::labs(
-    title = "Sensibilidad relativa de especies en base a distribución \ne historia de vida",
-    subtitle = "Valores mas altos indican mayor sensibilidad",
-    x = "Sensibilidad relativa historia de vida",
-    y = "Sensibilidad relativa distribución"
+    title = "Sensibilidad relativa de grupos en base a la historia de vida",
+    subtitle = "Un valor alto es mayor sensibilidad al cambio climático",
+    x = "Grupo",
+    y = "Valor del indicador") +
+#  ggplot2::theme(legend.position="none")+
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 1, hjust=1, size = 11))+
+  ggplot2::theme(strip.text = ggplot2::element_text(
+    size = 11))+
+  ggplot2::ylim(0,1) +
+  ggplot2::theme(legend.position="bottom")+
+  ggplot2::theme_linedraw() 
+
+sens.lf.plot
+
+
+
+ggplot2::ggsave("sensibilidad_historia_vida.png", sens.lf.plot, path = here::here("outputs","figures"), dpi=400, width= 14, height=14,scale =1)
+
+
+
+#measures of biotic velocity
+#modified so that high value of sensitivity is negative
+
+sens.dist <- readr::read_csv(here::here("outputs","distribution_stats_table.csv"))  %>% 
+  dplyr::mutate_at(c("suitability", "rmsq", "godsoeESp", "schoenerD", "warrenI","cor","rankCor"),funs(1-.))
+
+print(sens.dist)
+#centroid velocity is how quickly the species shifts distribution (higher value negative)
+#suitability (higher value positive)
+#correlation values are correlations with original distribution (higher value positive)
+#indices of niche overlap rmsd, godsoeESp, schoenerD, warren I, cor Rank cor measure higher values are positive, less change
+
+sens.data.long <- speciescoop %>% 
+  dplyr::rename(species = nombre_cientifico) %>% 
+  dplyr::select(-nom_coop, -arte_pesca, -fecha_fip, -lider_fip, -nombre_fip, -region) %>%
+  dplyr::left_join(sens.dist, by="species") %>%
+  tidyr::pivot_longer(cols = 15:ncol(.), names_to = "var_name", values_to = "value")
+
+sens.data.long.mean <- sens.data.long %>% 
+  dplyr::group_by(cooperativa, coop_name, localidad, entidad, species, scenario) %>% 
+  dplyr::summarise(mean_value = mean(value)) %>% 
+  dplyr::left_join(sp.coop.nom, by=c("coop_name","cooperativa","species","localidad","entidad"))
+
+
+sens.dist.plot <- sens.data.long.mean %>% 
+  dplyr::mutate(Estatus = dplyr::if_else(status=="fip","FIP", "Otros")) %>% 
+#  dplyr::mutate(species=str_to_sentence(species)) %>% 
+  ggplot2::ggplot(ggplot2::aes(x=habitat_group, y=mean_value)) + 
+  ggplot2::geom_point(ggplot2::aes(color = Estatus),
+    size = 3, 
+    alpha = 0.7 # It's nice to add some transparency because there may be overlap.
   ) +
-  ggplot2::theme_linedraw() +
-  ggplot2::scale_shape(guide="none") +
-  ggimage::geom_image(ggplot2::aes(image=image), size=0.12, nudge_x = 0.1)+
-  ggplot2::xlim(0,1.2)+
-  ggplot2::ylim(-0.2,1.2)
+ # ggplot2::scale_color_manual(values=sp.cols, name="Especie") +
+  ggplot2::facet_grid(coop_name ~ scenario) +
+  ggplot2::scale_color_brewer(palette = "Dark2") %>% 
+  ggplot2::labs(
+    title = "Sensibilidad relativa de grupos en base a la distribución",
+    subtitle = "Un valor alto es mayor sensibilidad al cambio climático",
+    x = "Grupo",
+    y = "Valor del indicador") +
+#  ggplot2::theme(legend.position="none")+
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 1, hjust=1, size = 11))+
+  ggplot2::theme(strip.text = ggplot2::element_text(
+    size = 11))+
+  ggplot2::ylim(0,1) +
+  ggplot2::theme(legend.position="bottom")+
+  ggplot2::theme_linedraw() 
 
-sens.data.plot
+sens.dist.plot
 
-ggplot2::ggsave("sensibilidad_especies.png", sens.data.plot, path = here::here("outputs","figures"), dpi=400, width= 7, height=9,scale =1)
+ggplot2::ggsave("sensibilidad_vel_biotica.png", sens.dist.plot, path = here::here("outputs","figures"), dpi=400, width= 12, height=14,scale =1)
 
+
+#joint two measures of sensitivity
+
+sens.all.mean <- sens.lf.long.mean %>% 
+  dplyr::rename(mean_value_lf = mean_value) %>%
+  dplyr::left_join(sens.data.long.mean, by=c("cooperativa","coop_name","species","localidad","entidad","habitat_group","status")) %>%
+  dplyr::rename(mean_value_dist= mean_value)
+
+sens.all.mean %>% readr::write_csv(here::here("outputs","scaled_sensitivity.csv"))  
+
+
+sens.all.plot <- sens.all.mean %>% 
+  dplyr::mutate(Estatus = dplyr::if_else(status=="fip","FIP", "Otros")) %>% 
+#  dplyr::mutate(species=str_to_sentence(species)) %>% 
+  ggplot2::ggplot(ggplot2::aes(x=mean_value_lf, y=mean_value_dist)) + 
+  ggplot2::geom_point(ggplot2::aes(color = habitat_group, shape = Estatus),
+    size = 3, 
+    alpha = 0.7 # It's nice to add some transparency because there may be overlap.
+  ) +
+ # ggplot2::scale_color_manual(values=sp.cols, name="Especie") +
+  ggplot2::facet_grid(coop_name ~ scenario) +
+  ggplot2::scale_color_brewer(palette = "Dark2") %>% 
+  ggplot2::labs(
+    title = "Sensibilidad de grupos de especies para cada cooperativa",
+    subtitle = "Un valor alto es mayor sensibilidad al cambio climático",
+    x = "Sensibilidad media en base a la historia de vida",
+    y = "Sensibilidad media en base a cambios en la distribución", 
+    color = "Grupo") +
+#  ggplot2::theme(legend.position="none")+
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, vjust = 1, hjust=1, size = 11))+
+  ggplot2::theme(strip.text = ggplot2::element_text(
+    size = 11))+
+  ggplot2::ylim(0,1) +
+  ggplot2::theme(legend.position="bottom") +
+  ggplot2::theme_linedraw() 
+                
+
+sens.all.plot
+
+ggplot2::ggsave("sensibilidad_all.png", sens.all.plot, path = here::here("outputs","figures"), dpi=400, width= 12, height=14,scale =1)
 
 
 ```
@@ -708,146 +742,85 @@ Plot vulnerability, hazard and exposure
 
 ```{r}
 
-fipinventory.sp <- fipinventory %>% 
-  dplyr::select(fip_id_number, species)
-  
-sens.lifehistory <- readr::read_csv(here::here("outputs","scaled_lifehistory.csv"))  %>% 
-  dplyr::left_join(fipinventory.sp, by =c("species")) %>% 
-  dplyr::group_by(fip_id_number) %>% 
-  dplyr::summarise(tot_score_lf = mean(tot_score)) 
+sens.data <- readr::read_csv(here::here("outputs","scaled_sensitivity.csv"))  
 
-# dist.lifehistory <- readr::read_csv(here::here("outputs","scaled_distribution.csv"))  %>% 
-# dplyr::mutate(fip_id_number = c(12947, 12856, 8040, 9158, 9158)) %>% 
-#   dplyr::group_by(fip_id_number) %>% 
-#   dplyr::summarise(tot_score_dis = mean(tot_score))
+sens.sc.data.dist <- sens.data %>%
+  dplyr::select(-mean_value_lf) %>%
+  dplyr::group_by(coop_name, esp_categoria, habitat_group) %>%
+  dplyr::summarise(mean_value=mean(mean_value_dist)) %>% 
+  dplyr::mutate(componente="sensibilidad hv")
+ 
+sens.sc.data <- sens.data %>%
+  dplyr::select(-mean_value_dist) %>%
+  dplyr::group_by(coop_name, esp_categoria, habitat_group) %>%
+  dplyr::summarise(mean_value=mean(mean_value_lf)) %>% 
+  dplyr::mutate(componente="sensibilidad dist")  %>% 
+  dplyr::bind_rows(sens.sc.data.dist) %>% 
+  dplyr::rename(cooperativa=coop_name, indicador_categoria = esp_categoria, indicator=habitat_group) %>% 
+  dplyr::mutate(scenario="historical")
 
 vul.sc.data <-
   readr::read_csv(here::here("outputs", "scaled_vulnerability.csv"))  %>%
-  dplyr::rename(tot_score_vul = tot_score) %>% 
-  dplyr::select(-fip_id_number) %>% 
-  tidyr::pivot_longer(cols = 2:ncol(.), names_to = "indicator", values_to = "value")%>% 
-  dplyr::mutate(componente = "vulnerabilidad")
-
-vul.tabla <- vul.sc.data %>% 
- # dplyr::select(-fip_name) %>% 
-  dplyr::mutate(indicator = dplyr::if_else(indicator== "fip_name", "nombre_fip",
-                               dplyr::if_else(indicator=="estimated_total_fip_landings_mt", "captura_fip", 
-                                              dplyr::if_else(indicator=="estimated_total_fishery_landings_mt", "produccion_pesquera", 
-                                                             dplyr::if_else(indicator=="tot_score_exp", "valor_total_expo",
-                                                                            dplyr::if_else(indicator=="tot_lf_catch", "valor_total_historia", indicator)))))) %>% 
-  dplyr::rename(indicador=indicator, valor = value)
-
-readr::write_csv(vul.tabla, here::here("outputs","Tabla 3_a_vulnerabilidad.csv"))
-
+  dplyr::mutate(componente = "vulnerabilidad") %>% 
+  dplyr::group_by(componente, cooperativa, indicador_categoria, nom_abrev) %>%
+  dplyr::summarise(mean_value=mean(value)) %>% 
+  dplyr::mutate(scenario="historical") %>% 
+  dplyr::rename(indicator = nom_abrev)
 
 expo.sc.data <-
   readr::read_csv(here::here("outputs", "scaled_exposure.csv"))  %>%
-  dplyr::rename(tot_score_exp = tot_score) %>% 
-  dplyr::left_join(sens.lifehistory, by = "fip_id_number") %>% 
-  dplyr::mutate(tot_lf_catch = tot_score_lf * (estimated_total_fip_landings_mt/estimated_total_fishery_landings_mt)) %>% 
-  dplyr::mutate(tot_lf_catch = dplyr::if_else(is.nan(tot_lf_catch),0, tot_lf_catch))
-
-process.num <- expo.sc.data %>%
-    dplyr::select(tot_lf_catch) %>%
-    caret::preProcess(., method=c("range"))
-
-num.scale <- expo.sc.data %>%
-    dplyr::select(tot_lf_catch) %>%
-    stats::predict(process.num, .) 
-
-expo.sc.data.lf <- expo.sc.data %>%
-  dplyr::select(-tot_score_lf, -tot_lf_catch, -fip_id_number) %>% 
-    dplyr::bind_cols(num.scale) %>% 
-  tidyr::pivot_longer(cols = 2:ncol(.), names_to = "indicator", values_to = "value") %>% 
-#  dplyr::mutate(FIP = dplyr::if_else(fip_name == "Mexico Bahia de Los Angeles octopus - trap/diver-caught/hand gathered", "Pulpo",
-#                                       dplyr::if_else(fip_name =="Mexico Baja California red sea urchin - diver-caught","Erizo rojo",
-#                                                      dplyr::if_else(fip_name =="Mexico North Pacific barred sand bass - pot/trap","Verdillo", "Langosta")))) %>% 
-   dplyr::mutate(componente = "exposición")
-
-expo.tabla <- expo.sc.data.lf %>% 
-  dplyr::select(-fip_name) %>% 
-  dplyr::mutate(indicator = dplyr::if_else(indicator== "fip_name", "nombre_fip",
-                               dplyr::if_else(indicator=="estimated_total_fip_landings_mt", "captura_fip", 
-                                              dplyr::if_else(indicator=="estimated_total_fishery_landings_mt", "produccion_pesquera", 
-                                                             dplyr::if_else(indicator=="tot_score_exp", "valor_total_expo",
-                                                                            dplyr::if_else(indicator=="tot_lf_catch", "valor_total_historia", indicator)))))) %>% 
-  dplyr::rename(indicador=indicator, valor = value)
-
-readr::write_csv(expo.tabla, here::here("outputs","Tabla 3_b_exposicion.csv"))
-
-
+  dplyr::mutate(componente = "exposure") %>% 
+  dplyr::group_by(componente, cooperativa, indicador_categoria, indicator) %>%
+  dplyr::summarise(mean_value=mean(value)) %>% 
+  dplyr::mutate(scenario="historical")
+  
 hazard.sc.data <-
   readr::read_csv(here::here("outputs", "scaled_hazard.csv")) %>% 
-  tidyr::pivot_longer(cols = 3:ncol(.), names_to = "indicator", values_to = "value")%>% 
-#  dplyr::mutate(FIP = dplyr::if_else(fip_name == "Mexico Bahia de Los Angeles octopus - trap/diver-caught/hand gathered", "Pulpo",
-#                                       dplyr::if_else(fip_name =="Mexico Baja California red sea urchin - diver-caught","Erizo rojo",
-#                                                      dplyr::if_else(fip_name =="Mexico North Pacific barred sand bass - pot/trap","Verdillo", "Langosta")))) %>% 
-   dplyr::mutate(componente = "peligro")
-
-
-hazard.tabla <- hazard.sc.data %>% 
-  dplyr::select(-fip_name) %>% 
-  dplyr::mutate(indicator = dplyr::if_else(indicator== "fip_name", "nombre_fip",
-                               dplyr::if_else(indicator=="estimated_total_fip_landings_mt", "captura_fip", 
-                                              dplyr::if_else(indicator=="estimated_total_fishery_landings_mt", "produccion_pesquera", 
-                                                             dplyr::if_else(indicator=="tot_score_exp", "valor_total_expo",
-                                                                            dplyr::if_else(indicator=="tot_lf_catch", "valor_total_historia", indicator)))))) %>% 
-  dplyr::rename(indicador=indicator, valor = value)
-
-readr::write_csv(hazard.tabla, here::here("outputs","Tabla 3_c_peligro.csv"))
-
-
-vul.exp.data <- dplyr::bind_rows(vul.sc.data, expo.sc.data.lf)
-
-hazard.sc <- hazard.sc.data %>%
-  dplyr::distinct(escenario) %>%
-  dplyr::pull(escenario)
-
-eachscenario="ssp585"
-  this.data <- hazard.sc.data %>% 
-  dplyr::filter(escenario==eachscenario) %>% 
-  dplyr::select(-escenario) %>% 
-  dplyr::bind_rows(vul.exp.data) %>% 
-  dplyr::select(-fip_name) %>% 
-    #need to fix this variable, delete for now
-  dplyr::select(-cam_hogfem)  
+  dplyr::rename(componente = component) %>%
+  dplyr::filter(indicator!="tot_score") %>% 
+  dplyr::group_by(componente, cooperativa, scenario, indicator) %>%
+  dplyr::summarise(mean_value=mean(value, na.rm = TRUE)) %>% 
+  dplyr::mutate(indicador_categoria="peligro") 
   
+
+risk.data <- dplyr::bind_rows(sens.sc.data, vul.sc.data, expo.sc.data, hazard.sc.data) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::mutate(indicador_categoria = dplyr::if_else(indicador_categoria=="hazard", "ambientales", indicador_categoria)) %>%
+  dplyr::mutate(eje = dplyr::if_else(componente=="sensibilidad dist", "peligro",
+                                     dplyr::if_else(componente=="sensibilidad hv", "peligro",
+                                            dplyr::if_else(componente=="hazard", "peligro", 
+                                                           dplyr::if_else(componente=="exposure", "exposición", componente))))) 
+
+risk.data %>% dplyr::distinct(eje)
+
   sp.cols <-
   c("#154c79",
-             "#e28743",
              "#76b5c5",
              "#873e23",
              "#0072B2",
              "#56B4E9",
              "#999999")
   
-comp.plot <- this.data %>%
-  ggplot2::ggplot(ggplot2::aes(x = componente, y = value)) +
-  ggplot2::geom_point(ggplot2::aes(color = componente),
-                      size = 2,
-                      alpha = 0.8) + # It's nice to add some transparency because there may be overlap.)
-                      ggplot2::scale_color_manual(values = sp.cols, name = "Componente") +
-                        ggplot2::labs(
-                          title = "Componentes del riesgo a las pesquerías",
-                          subtitle = "Puntos son diferentes indicadores",
-                          x = "Componente",
-                          y = "Valor"
-                        ) +
-                        ggplot2::theme_linedraw() +
-                        ggplot2::scale_shape(guide = "none") +
-                        ggplot2::theme(legend.position="bottom")# +
+  comp.plot <- risk.data %>%
+    dplyr::filter(scenario=="historical") %>% 
+    ggplot2::ggplot(ggplot2::aes(x = eje, y = mean_value)) +
+    ggplot2::geom_boxplot(ggplot2::aes(color = eje)) +
+    ggplot2::geom_jitter(ggplot2::aes(color = eje), alpha = 0.8) +
+    ggplot2::facet_wrap(. ~ cooperativa) + # It's nice to add some transparency because there may be overlap.)
+    ggplot2::scale_color_manual(values = sp.cols, name = "Componente") +
+    ggplot2::labs(
+      title = "Componentes del riesgo ante el cambio climático bajo condiciones actuales",
+      subtitle = "Los puntos son diferentes indicadores",
+      x = "Eje",
+      y = "Valor promedio"
+    ) +
+    ggplot2::theme_linedraw() +
+    ggplot2::theme(legend.position="none") +
+    ggplot2::theme(strip.text = ggplot2::element_text(
+      size = 11))
                      #   ggplot2::facet_wrap(.~FIP, ncol=2) 
                       
-
-ggplot2::ggsave(
-  "componentes_pesqueria.png",
-  comp.plot,
-  path = here::here("outputs", "figures"),
-  dpi = 400,
-  width = 9.5,
-  height = 10,
-  scale = 1
-)
+ggplot2::ggsave("componentes_riesgo.png", comp.plot, path = here::here("outputs","figures"), dpi=400, width= 16, height=11,scale =1)
 
 
 ```
@@ -857,53 +830,6 @@ ggplot2::ggsave(
 Plot risk
 ```{r plot risk}
 
-data(specieslist)
-data(fipinventory)
-
-sens.lifehistory <- readr::read_csv(here::here("outputs","scaled_lifehistory.csv"))  %>% 
- # dplyr::group_by(fip_id_number) %>% 
-  dplyr::summarise(tot_score_lf = mean(tot_score))
-
-# dist.lifehistory <- readr::read_csv(here::here("outputs","scaled_distribution.csv"))  %>% 
-# dplyr::mutate(fip_id_number = c(12947, 12856, 8040, 9158, 9158)) %>% 
-#   dplyr::group_by(fip_id_number) %>% 
-#   dplyr::summarise(tot_score_dis = mean(tot_score))
-
-vul.sc.data <-
-  readr::read_csv(here::here("outputs", "scaled_vulnerability.csv"))  %>%
-  dplyr::rename(tot_score_vul = tot_score, loc_subsidio = tot_loc_subsidio)
-
-expo.sc.data <-
-  readr::read_csv(here::here("outputs", "scaled_exposure.csv"))  %>%
-  dplyr::rename(tot_score_exp = tot_score) %>% 
-#  dplyr::left_join(sens.lifehistory, by = "fip_id_number") %>% 
-  dplyr::mutate(tot_lf_catch = tot_score_exp * (estimated_total_fip_landings_mt/estimated_total_fishery_landings_mt)) %>% #check variables are correct
-  dplyr::mutate(tot_lf_catch = dplyr::if_else(is.nan(tot_lf_catch),0, tot_lf_catch))
-
-process.num <- expo.sc.data %>%
-    dplyr::select(tot_lf_catch) %>%
-    caret::preProcess(., method=c("range"))
-
-num.scale <- expo.sc.data %>%
-    dplyr::select(tot_lf_catch) %>%
-    stats::predict(process.num, .) 
-
-expo.sc.data.lf <- expo.sc.data %>%
-  dplyr::select(-tot_lf_catch) %>% 
-    dplyr::bind_cols(num.scale)
-
-hazard.sc.data <-
-  readr::read_csv(here::here("outputs", "scaled_hazard.csv"))
-
-vul.expo.dat <- vul.sc.data %>%
-  #check data doesn't have fip name
-#  dplyr::left_join(expo.sc.data.lf, by = c("fip_name", "fip_id_number")) %>%
-  dplyr::left_join(expo.sc.data.lf, by = c("fip_id_number")) %>%
-  dplyr::select(-fip_id_number)
-
-hazard.sc <- hazard.sc.data %>%
-  dplyr::distinct(escenario) %>%
-  dplyr::pull(escenario)
 
 topsis.res <-
   lapply(hazard.sc, calc_topsis, hazard.sc.data, vul.expo.dat, sp.cols) %>%
@@ -1026,19 +952,6 @@ ggplot2::ggsave(
   scale = 1
 )
                       
-
-```
-
-PCA
-
-```{r get pca scores}
-
-pca.files <- list.files(path=here::here("outputs","analysis"),pattern = "*_contrib.csv", full.names = TRUE)
-
-pca.res <- lapply(pca.files, get_pca) %>% 
-  dplyr::bind_rows()
-
-readr::write_csv(pca.res,here::here("outputs", "analysis","results_pca.csv"))
 
 ```
 

@@ -29,7 +29,7 @@
 #'   \item{\code{PPOCUPADA}}{double COLUMN_DESCRIPTION}
 #'   \item{\code{GRAPROES}}{double COLUMN_DESCRIPTION}
 #'   \item{\code{PPDER_SS}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{P18A24A}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{PP18A24A}}{double COLUMN_DESCRIPTION}
 #'   \item{\code{CPEA}}{double COLUMN_DESCRIPTION}
 #'   \item{\code{PVIVTOT}}{double COLUMN_DESCRIPTION}
 #'   \item{\code{PTOTHOG}}{double COLUMN_DESCRIPTION}

@@ -1,28 +1,40 @@
 #' @title DATASET_TITLE
 #' @description DATASET_DESCRIPTION
-#' @format A data frame with 70 rows and 21 variables:
+#' @format A data frame with 2219 rows and 33 variables:
 #' \describe{
-#'   \item{\code{CVE_ENT}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{CVE_LOC}}{character COLUMN_DESCRIPTION}
 #'   \item{\code{CVE_MUN}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{impacto_antropogenico}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{impacto_humano}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{intervalo_diurno}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{marea_roja}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{oxigeno_disuelto}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{precipitacion_promedio}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{productividad_primaria}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{riesgo_huracanes}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{riesgo_inundaciones}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{temperatura_promedio_anual}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{temperatura_superficial}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{NOM_ENT}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{NOM_MUN}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{NOM_LOC}}{character COLUMN_DESCRIPTION}
-#'   \item{\code{POBTOT}}{double COLUMN_DESCRIPTION}
-#'   \item{\code{no_loc}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{no_mun}}{integer COLUMN_DESCRIPTION}
-#'   \item{\code{no_ent}}{integer COLUMN_DESCRIPTION} 
+#'   \item{\code{CVE_LOC}}{character COLUMN_DESCRIPTION}
+#'   \item{\code{Average_DissolvedIron}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_DissolvedMolecularOxygen}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_Nitrate}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_OceanTemperature}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_pH}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_Salinity}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_SeaWaterDirection}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_SeaWaterSpeed}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_Silicate}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Average_TotalPhytoplankton}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_Chlorophyll}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_DissolvedIron}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_DissolvedMolecularOxygen}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_Nitrate}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_OceanTemperature}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_pH}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_Salinity}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_SeaWaterDirection}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_SeaWaterSpeed}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_Silicate}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Maximum_TotalPhytoplankton}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_Chlorophyll}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_DissolvedMolecularOxygen}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_Nitrate}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_OceanTemperature}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_pH}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_Salinity}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_SeaWaterDirection}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_SeaWaterSpeed}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_Silicate}}{double COLUMN_DESCRIPTION}
+#'   \item{\code{Minimum_TotalPhytoplankton}}{double COLUMN_DESCRIPTION} 
 #'}
 #' @details DETAILS
 "exposuressp245"

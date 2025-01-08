@@ -17,6 +17,7 @@ Imports:
     dplyr,
     exactextractr,
     googlesheets4,
+    ggforce,
     here,
     magrittr,
     readr,

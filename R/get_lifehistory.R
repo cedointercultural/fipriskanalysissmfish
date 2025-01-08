@@ -7,26 +7,19 @@
 #' @export
 #'
 #' @examples
-get_lifehistory <- function(lifehistorydata, localities, fipinventory, lifehistorytraits){
+get_lifehistory <- function(lifehistorydata, localities, lifehistorytraits, species.sm){
 
+  fishery.species <- species.sm %>% 
+    dplyr::rename(species = nombre_cientifico) %>% 
+  dplyr::select(species, status)
+  
   fiplocal.bc <- localities %>%
- #   dplyr::filter(fip_id_number %in% c(9158, 12856, 12947, 8040)) %>%
-    dplyr::select(fip_id_number, COM_ID, locality, municipality, state) %>%
-    dplyr::mutate(fip_id_number = as.factor(fip_id_number))
-
+    dplyr::select(CVE_ENT, CVE_LOC, CVE_MUN) 
+  
   fiplocal.bc.id <- fiplocal.bc %>%
-    dplyr::distinct(COM_ID)
-
-  fipinventory.bc <- fipinventory %>%
- #   dplyr::filter(fip_id_number %in% c(9158, 12856, 12947, 8040)) %>%
-    tidyr::unnest(cols = c(estimated_total_fip_landings_mt, estimated_total_fishery_landings_mt, landings_date)) %>%
-    dplyr::mutate(species = as.factor(species))
-
-  species.bc <- fipinventory.bc %>%
-    dplyr::distinct(species) %>%
-    dplyr::pull(species)
-
-  lf.traits <- lifehistorytraits %>%
+    dplyr::distinct(CVE_LOC)
+  
+   lf.traits <- lifehistorytraits %>%
     dplyr::select(-Trait,-Definition) %>%
     dplyr::filter(quant_index == 1) %>%
     tidyr::unnest(cols = c(Low, Moderate, High, `Very high`)) %>%
@@ -37,30 +30,22 @@ get_lifehistory <- function(lifehistorydata, localities, fipinventory, lifehisto
     dplyr::rename(traits = col_name) %>%
     dplyr::select(-quant_index, -ideal_directionality)
 
+  lf.data <- lifehistorydata %>% 
+    dplyr::rename(species = nombre_cientifico)
+    
   col.traits <- lf.traits %>%
     dplyr::distinct(traits) %>%
     dplyr::pull(traits)
 
-  lifehistory.bc <- lifehistorydata %>%
-    dplyr::select(dplyr::matches(c("species","common_name",col.traits))) %>%
-    dplyr::filter(species %in% species.bc) %>%
-    tidyr::unnest(cols = c(fecundity_mean_eggs)) %>%
-    tidyr::pivot_longer(cols=3:16,names_to = "traits") %>%
-    dplyr::left_join(lf.traits, by=c("traits","value")) %>%
-    dplyr::mutate(category = as.factor(category), species = as.factor(species), common_name = as.factor(common_name)) %>%
-    dplyr::left_join(fipinventory.bc, by = c("species","common_name")) %>%
-    dplyr::mutate(fip_id_number = as.factor(fip_id_number))
+  lifehistory.bc <- fishery.species %>%
+    dplyr::left_join(lf.data, by=c("species")) %>%
+    dplyr::filter(!is.na(nombre_comun)) %>%
+    dplyr::select(species, status, all_of(col.traits)) %>%
+    tidyr::pivot_longer(cols=3:ncol(.),names_to = "traits") %>%
+    dplyr::left_join(lf.traits, by=c("traits","value"))  
 
-  #check why there are more than one instance of species/trit combination
-  lifehistory.trait <- lifehistory.bc %>%
-    dplyr::select(fip_id_number, species, traits, score) %>%
-    group_by(fip_id_number, species,traits) %>%
-    summarise(score_m=mean(score)) %>%
-    tidyr::pivot_wider(id_cols = c(species, fip_id_number), names_from = traits, values_from = score_m) %>%
-    #this is a filler need to fix why NAs
-    mutate_if(is.numeric, funs(ifelse(is.na(.), 1, .)))
 
-  return(lifehistory.trait)
+  return(lifehistory.bc)
 
 }
 
